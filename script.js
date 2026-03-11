@@ -1,9 +1,70 @@
-// --- INITIALISIERUNG ---
+// --- 1. KONFIGURATION (Hier kannst du einfach erweitern) ---
+const OBJECT_TYPES = {
+    'box': {
+        size: [1, 1, 1],
+        color: 0xd2b48c,
+        mass: 2,
+        type: 'box',
+        isExplosive: false
+    },
+    'db2g': {
+        size: [0.1, 0.4, 0.1], 
+        color: 0x222222,
+        mass: 0.5,
+        type: 'cylinder',
+        isExplosive: true,
+        timer: 2000,
+        power: 10,
+        radius: 6
+    },
+    'db5g': {
+        size: [0.11, 0.5, 0.11],
+        color: 0x222222,
+        mass: 1.0,
+        type: 'cylinder',
+        isExplosive: true,
+        timer: 2000,
+        power: 25,
+        radius: 12
+    },
+    'bb8g': {
+        size: [0.12, 0.6, 0.12],
+        color: 0x222222,
+        mass: 1.0,
+        type: 'cylinder',
+        isExplosive: true,
+        timer: 2000,
+        power: 40,
+        radius: 14
+     },
+    'sc628g': {
+        size: [0.13, 0.7, 0.13],
+        color: 0x222222,
+        mass: 1.0,
+        type: 'cylinder',
+        isExplosive: true,
+        timer: 2000,
+        power: 140,
+        radius: 18,
+        hasFuse: true
+     },
+    'db650g': {
+        size: [0.20, 1.0, 0.20],
+        color: 0x222222,
+        mass: 1.0,
+        type: 'cylinder',
+        isExplosive: true,
+        timer: 2000,
+        power: 2000,
+        radius: 40
+    }
+};
+
 let mode = 'box';
 const meshes = [];
 const bodies = [];
 
-// 1. Three.js Setup (Grafik)
+// --- 2. THREE.JS SETUP ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa0a0a0);
 
@@ -15,124 +76,174 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Licht
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(5, 10, 7.5);
 scene.add(light);
 scene.add(new THREE.AmbientLight(0x404040));
 
-// 2. Cannon.js Setup (Physik)
+// --- 3. CANNON.JS SETUP (Physik) ---
 const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0); // Schwerkraft Erde
+world.gravity.set(0, -9.82, 0);
 
-// Boden erstellen
-// Boden-Maße
+// Boden
 const groundSize = 20;
-const groundThickness = 0.5;
-
-// Grafik (Three.js)
+const groundThickness = 1.5;
 const groundGeo = new THREE.BoxGeometry(groundSize, groundThickness, groundSize);
-const groundMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+const groundMat = new THREE.MeshPhongMaterial({ color: 0x555555 });
 const groundMesh = new THREE.Mesh(groundGeo, groundMat);
-// Wir positionieren die Oberfläche des Bodens auf y = 0
 groundMesh.position.y = -groundThickness / 2; 
 scene.add(groundMesh);
 
-// Physik (Cannon.js) - Hier nutzen wir jetzt eine Box statt einer Plane
 const groundBody = new CANNON.Body({ 
-    mass: 0, // Mass 0 bedeutet unbeweglich (statisch)
+    mass: 0, 
     shape: new CANNON.Box(new CANNON.Vec3(groundSize/2, groundThickness/2, groundSize/2)) 
 });
 groundBody.position.set(0, -groundThickness / 2, 0);
 world.addBody(groundBody);
 
-// --- FUNKTIONEN ---
+// --- 4. FUNKTIONEN ---
 
-function createBox(x, y, z) {
-    const size = 1;
-    // Grafik
-    const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(size, size, size),
-        new THREE.MeshPhongMaterial({ color: 0xd2b48c })
-    );
-    scene.add(mesh);
+function spawnObject(type, x, y, z) {
+    const config = OBJECT_TYPES[type];
+    if (!config) return;
 
-    // Physik
-    const body = new CANNON.Body({
-        mass: 2,
-        shape: new CANNON.Box(new CANNON.Vec3(size/2, size/2, size/2))
-    });
-    body.position.set(x, y, z);
-    world.addBody(body);
+    let mesh, shape, body;
     
-    meshes.push(mesh);
-    bodies.push(body);
-}
+    // Standardmäßig nutzen wir die exakten Klick-Koordinaten
+    let finalX = x;
+    let finalY = y + 0.5; // Standard-Höhe über Grund
+    let finalZ = z;
+    
+    // Standard-Rotation (keine Drehung)
+    let rotX = 0, rotY = 0, rotZ = 0;
 
-function createFirecracker(x, y, z) {
-    const mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.1, 0.1, 0.4),
-        new THREE.MeshPhongMaterial({ color: 0xff0000 })
-    );
-    scene.add(mesh);
+    // --- NUR BEI BÖLLERN (Cylinder) ZUFALL ANWENDEN ---
+    if (config.type === 'cylinder') {
+        const jitter = 0.3;
+        finalX = x + (Math.random() - 0.5) * jitter;
+        finalZ = z + (Math.random() - 0.5) * jitter;
+        finalY = y + 0.8; // Böller fallen ein Stück
 
-    const body = new CANNON.Body({ mass: 0.5, shape: new CANNON.Cylinder(0.1, 0.1, 0.4, 8) });
-    body.position.set(x, y, z);
-    world.addBody(body);
+        rotY = Math.random() * Math.PI * 2; // Zufällige Drehung um die eigene Achse
+        rotX = (Math.random() - 0.5) * 1; // Leichter Tilt
+        rotZ = (Math.random() - 0.5) * 1;
+    }
 
-    meshes.push(mesh);
-    bodies.push(body);
+    if (config.type === 'cylinder') {
+        // Grafik Böller
+        const geometry = new THREE.CylinderGeometry(config.size[0], config.size[0], config.size[1], 16);
+        const material = new THREE.MeshPhongMaterial({ color: config.color });
+        mesh = new THREE.Mesh(geometry, material);
 
-    // Explosion nach Timer
-    setTimeout(() => {
-        // Wir holen uns die AKTUELLEN Koordinaten des Körpers,
-        // egal wo er gerade hingekullert ist.
-        const currentPos = new CANNON.Vec3(
-            body.position.x, 
-            body.position.y, 
-            body.position.z
-        );
-
-        explode(currentPos); // Explosion an der echten Position auslösen
-
-        // Objekt aus der Welt entfernen
-        scene.remove(mesh);
-        world.removeBody(body);
+        // Physik Böller
+        shape = new CANNON.Cylinder(config.size[0], config.size[0], config.size[1], 16);
+        const q = new CANNON.Quaternion();
+        q.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
         
-        // Aus den Arrays löschen, damit sie nicht weiter gerendert werden
-        const index = bodies.indexOf(body);
-        if (index > -1) {
-            bodies.splice(index, 1);
-            meshes.splice(index, 1);
+        body = new CANNON.Body({ mass: config.mass });
+        body.addShape(shape, new CANNON.Vec3(), q); 
+    } else {
+        // Grafik Kiste
+        mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(...config.size),
+            new THREE.MeshPhongMaterial({ color: config.color })
+        );
+        // Physik Kiste
+        shape = new CANNON.Box(new CANNON.Vec3(config.size[0]/2, config.size[1]/2, config.size[2]/2));
+        body = new CANNON.Body({ mass: config.mass, shape: shape });
+        
+        // Bei Kisten setzen wir y etwas präziser, damit sie nicht hüpfen
+        finalY = y + config.size[1] / 2;
+    }
+
+    // Position und Rotation anwenden
+    body.position.set(finalX, finalY, finalZ);
+    body.quaternion.setFromEuler(rotX, rotY, rotZ);
+
+    // Hinzufügen
+    scene.add(mesh);
+    world.addBody(body);
+    meshes.push(mesh);
+    bodies.push(body);
+
+    // --- Explosions-Logik & Vorbrenner ---
+    if (config.isExplosive) {
+        if (config.hasFuse) {
+            const flameGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            const flameMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const flameMesh = new THREE.Mesh(flameGeo, flameMat);
+            const flameLight = new THREE.PointLight(0xffaa00, 2, 3);
+            
+            scene.add(flameMesh);
+            scene.add(flameLight);
+
+            mesh.userData.flame = flameMesh;
+            mesh.userData.light = flameLight;
+            mesh.userData.flameOffset = config.size[1] / 2;
         }
-    }, 2000); // 2 Sekunden Zündzeit
+
+        setTimeout(() => {
+            if (bodies.includes(body)) {
+                const explosionPos = body.position.clone();
+                if (mesh.userData.flame) {
+                    scene.remove(mesh.userData.flame);
+                    scene.remove(mesh.userData.light);
+                }
+                explode(explosionPos, config.power, config.radius);
+                removeObject(body);
+            }
+        }, config.timer);
+    }
 }
 
-function explode(pos) {
-    const power = 40;
+function removeObject(body) {
+    const index = bodies.indexOf(body);
+    if (index > -1) {
+        scene.remove(meshes[index]);
+        world.removeBody(bodies[index]);
+        bodies.splice(index, 1);
+        meshes.splice(index, 1);
+    }
+}
+
+function explode(pos, power, radius) {
     bodies.forEach(b => {
         const dist = b.position.distanceTo(pos);
-        if (dist < 6) {
+        if (dist < radius) {
             const dir = b.position.vsub(pos);
             dir.normalize();
             b.applyImpulse(dir.scale(power / (dist + 0.5)), b.position);
         }
     });
 
-    // Kurzer Blitz-Effekt
     const flash = new THREE.Mesh(
-        new THREE.SphereGeometry(1.5),
-        new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.8 })
+        new THREE.SphereGeometry(radius / 4),
+        new THREE.MeshBasicMaterial({ color: 0xffffed, transparent: true, opacity: 0.6 })
     );
     flash.position.set(pos.x, pos.y, pos.z);
     scene.add(flash);
-    setTimeout(() => scene.remove(flash), 150);
+    setTimeout(() => scene.remove(flash), 80);
 }
 
-// --- EVENTS ---
+// --- 5. EVENTS & LOOP ---
 
-document.getElementById('btn-box').onclick = () => mode = 'box';
-document.getElementById('btn-firework').onclick = () => mode = 'firecracker';
+// Stelle sicher, dass deine HTML-Buttons die IDs 'btn-box', 'dumbum2g' etc. haben
+const btnBox = document.getElementById('btn-box');
+const db2g = document.getElementById('dumbum2g');
+const db5g = document.getElementById('dumbum5g');
+const bb8g = document.getElementById('bigbang8g');
+const sc628g = document.getElementById('supercobra6');
+const db650g = document.getElementById('dumbum650g');
+
+
+if(btnBox) btnBox.onclick = () => mode = 'box';
+if(db2g) db2g.onclick = () => mode = 'db2g';
+if(db5g) db5g.onclick = () => mode = 'db5g';
+if(bb8g) bb8g.onclick = () => mode = 'bb8g';
+if(sc628g) sc628g.onclick = () => mode = 'sc628g';
+if(db650g) db650g.onclick = () => mode = 'db650g';
+
+
 
 window.addEventListener('mousedown', (event) => {
     const mouse = new THREE.Vector2(
@@ -146,26 +257,33 @@ window.addEventListener('mousedown', (event) => {
 
     if (intersects.length > 0) {
         const p = intersects[0].point;
-        if (mode === 'box') createBox(p.x, p.y + 1, p.z);
-        else createFirecracker(p.x, p.y + 0.5, p.z);
+        spawnObject(mode, p.x, p.y + 1, p.z);
     }
 });
 
-// Animations-Loop
 function animate() {
     requestAnimationFrame(animate);
     world.step(1/60);
     
-    for (let i = meshes.length - 1; i >= 0; i--) { // Rückwärts loopen beim Löschen
+    for (let i = meshes.length - 1; i >= 0; i--) {
         meshes[i].position.copy(bodies[i].position);
         meshes[i].quaternion.copy(bodies[i].quaternion);
+     
+    if (meshes[i].userData.flame) {
+        const m = meshes[i];
+   
+        const offset = new THREE.Vector3(0, m.userData.flameOffset, 0);
+        offset.applyQuaternion(m.quaternion);
+    
+        m.userData.flame.position.copy(m.position).add(offset);
+        m.userData.light.position.copy(m.userData.flame.position);
+    
+    
+        m.userData.light.intensity = 1 + Math.random() * 1.5;
+}
 
-        // Wenn ein Objekt tief fällt, lösche es aus der Szene
         if (bodies[i].position.y < -20) {
-            scene.remove(meshes[i]);
-            world.removeBody(bodies[i]);
-            meshes.splice(i, 1);
-            bodies.splice(i, 1);
+            removeObject(bodies[i]);
         }
     }
     renderer.render(scene, camera);
@@ -173,7 +291,6 @@ function animate() {
 
 animate();
 
-// Fenstergröße anpassen
 window.onresize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
