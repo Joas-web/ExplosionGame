@@ -26,14 +26,24 @@ const world = new CANNON.World();
 world.gravity.set(0, -9.82, 0); // Schwerkraft Erde
 
 // Boden erstellen
-const groundGeo = new THREE.PlaneGeometry(30, 30);
+// Boden-Maße
+const groundSize = 20;
+const groundThickness = 0.5;
+
+// Grafik (Three.js)
+const groundGeo = new THREE.BoxGeometry(groundSize, groundThickness, groundSize);
 const groundMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
 const groundMesh = new THREE.Mesh(groundGeo, groundMat);
-groundMesh.rotation.x = -Math.PI / 2;
+// Wir positionieren die Oberfläche des Bodens auf y = 0
+groundMesh.position.y = -groundThickness / 2; 
 scene.add(groundMesh);
 
-const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
-groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+// Physik (Cannon.js) - Hier nutzen wir jetzt eine Box statt einer Plane
+const groundBody = new CANNON.Body({ 
+    mass: 0, // Mass 0 bedeutet unbeweglich (statisch)
+    shape: new CANNON.Box(new CANNON.Vec3(groundSize/2, groundThickness/2, groundSize/2)) 
+});
+groundBody.position.set(0, -groundThickness / 2, 0);
 world.addBody(groundBody);
 
 // --- FUNKTIONEN ---
@@ -146,9 +156,17 @@ function animate() {
     requestAnimationFrame(animate);
     world.step(1/60);
     
-    for (let i = 0; i < meshes.length; i++) {
+    for (let i = meshes.length - 1; i >= 0; i--) { // Rückwärts loopen beim Löschen
         meshes[i].position.copy(bodies[i].position);
         meshes[i].quaternion.copy(bodies[i].quaternion);
+
+        // Wenn ein Objekt tief fällt, lösche es aus der Szene
+        if (bodies[i].position.y < -20) {
+            scene.remove(meshes[i]);
+            world.removeBody(bodies[i]);
+            meshes.splice(i, 1);
+            bodies.splice(i, 1);
+        }
     }
     renderer.render(scene, camera);
 }
