@@ -298,10 +298,45 @@ function handleInput(clientX, clientY) {
   }
 }
 
-// Event-Listener für Maus
+// --- 5. EVENTS & LOOP ---
+
+// Diese Funktion verarbeitet die Logik für beide Eingabearten (Maus & Touch)
+function handleInput(clientX, clientY, event) {
+  // Prüfen, ob man auf ein UI-Element (Button oder Menü) geklickt hat
+  if (event.target.tagName === 'BUTTON' || event.target.closest('#menu')) {
+    return; // Abbrechen, damit kein Objekt hinter dem Button spawnt
+  }
+
+  const mouse = new THREE.Vector2(
+    (clientX / window.innerWidth) * 2 - 1,
+    -(clientY / window.innerHeight) * 2 + 1,
+  );
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObject(groundMesh);
+
+  if (intersects.length > 0) {
+    const p = intersects[0].point;
+    spawnObject(mode, p.x, p.y + 1, p.z);
+  }
+}
+
+// Event-Listener für PC (Maus)
 window.addEventListener("mousedown", (e) => {
-  handleInput(e.clientX, e.clientY);
+  handleInput(e.clientX, e.clientY, e);
 });
+
+// Event-Listener für Handy (Touch)
+window.addEventListener("touchstart", (e) => {
+  // Verhindert das zusätzliche "Geister-Mousedown" Event auf Mobilgeräten
+  if (e.cancelable) e.preventDefault(); 
+  
+  const touch = e.touches[0];
+  handleInput(touch.clientX, touch.clientY, e);
+}, { passive: false });
+
+// ... Hier folgen dann deine Button-Zuweisungen (btnBox.onclick etc.)
 
 // Event-Listener für Touch (Handy)
 window.addEventListener("touchstart", (e) => {
