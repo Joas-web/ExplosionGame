@@ -4,19 +4,24 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
 }
 
-#menu {
+.menu {
     position: absolute; 
     top: 20px; 
     left: 20px;
     background: rgba(255, 255, 255, 0.9);
     padding: 20px; 
     border-radius: 12px; 
-    display: flex; 
+    display: block; 
     flex-direction: column; 
     gap: 12px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     z-index: 10;
+    width: 160px;
     text-align: center;
+}
+
+#menu {
+    display: block;
 }
 
 button { 
@@ -28,6 +33,8 @@ button {
     color: white; 
     font-weight: bold;
     transition: background 0.3s;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 button:hover { 
