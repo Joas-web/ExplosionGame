@@ -275,21 +275,41 @@ if (bb8g) bb8g.onclick = () => (mode = "bb8g");
 if (sc628g) sc628g.onclick = () => (mode = "sc628g");
 if (db650g) db650g.onclick = () => (mode = "db650g");
 
-window.addEventListener("mousedown", (event) => {
+function handleInput(clientX, clientY) {
+  // 1. Verhindern, dass Objekte gespawnt werden, wenn man auf ein UI-Element klickt
+  if (event.target.tagName === 'BUTTON' || event.target.closest('#menu')) {
+    return;
+  }
+
   const mouse = new THREE.Vector2(
-    (event.clientX / window.innerWidth) * 2 - 1,
-    -(event.clientY / window.innerHeight) * 2 + 1,
+    (clientX / window.innerWidth) * 2 - 1,
+    -(clientY / window.innerHeight) * 2 + 1,
   );
 
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera);
+  
+  // Wir prüfen nur die Kollision mit dem Boden
   const intersects = raycaster.intersectObject(groundMesh);
 
   if (intersects.length > 0) {
     const p = intersects[0].point;
     spawnObject(mode, p.x, p.y + 1, p.z);
   }
+}
+
+// Event-Listener für Maus
+window.addEventListener("mousedown", (e) => {
+  handleInput(e.clientX, e.clientY);
 });
+
+// Event-Listener für Touch (Handy)
+window.addEventListener("touchstart", (e) => {
+  // Verhindert Scrollen/Zoomen beim Platzieren, falls gewünscht:
+  // e.preventDefault(); 
+  const touch = e.touches[0];
+  handleInput(touch.clientX, touch.clientY);
+}, { passive: false });
 
 function animate() {
   requestAnimationFrame(animate);
