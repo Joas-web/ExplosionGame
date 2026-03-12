@@ -300,11 +300,10 @@ function handleInput(clientX, clientY) {
 
 // --- 5. EVENTS & LOOP ---
 
-// Diese Funktion verarbeitet die Logik für beide Eingabearten (Maus & Touch)
-function handleInput(clientX, clientY, event) {
-  // Prüfen, ob man auf ein UI-Element (Button oder Menü) geklickt hat
-  if (event.target.tagName === 'BUTTON' || event.target.closest('#menu')) {
-    return; // Abbrechen, damit kein Objekt hinter dem Button spawnt
+function handleInput(clientX, clientY, target) {
+  // 1. Prüfen, ob das Ziel des Klicks ein Button oder Teil des Menüs ist
+  if (target.tagName === 'BUTTON' || target.closest('#menu')) {
+    return; // Wenn ja: Funktion abbrechen, der Button macht seine eigene Arbeit
   }
 
   const mouse = new THREE.Vector2(
@@ -321,6 +320,24 @@ function handleInput(clientX, clientY, event) {
     spawnObject(mode, p.x, p.y + 1, p.z);
   }
 }
+
+// Maus-Event (PC)
+window.addEventListener("mousedown", (e) => {
+  handleInput(e.clientX, e.clientY, e.target);
+});
+
+// Touch-Event (Handy)
+window.addEventListener("touchstart", (e) => {
+  const touch = e.touches[0];
+  
+  // Wir prüfen direkt hier: Wenn wir NICHT auf einen Button drücken, 
+  // verhindern wir das doppelte Event. Wenn es ein Button ist, 
+  // lassen wir das Event normal durchlaufen.
+  if (e.target.tagName !== 'BUTTON' && !e.target.closest('#menu')) {
+    if (e.cancelable) e.preventDefault();
+    handleInput(touch.clientX, touch.clientY, e.target);
+  }
+}, { passive: false });
 
 // Event-Listener für PC (Maus)
 window.addEventListener("mousedown", (e) => {
