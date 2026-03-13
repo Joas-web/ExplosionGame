@@ -1,8 +1,8 @@
 // --- 1. KONFIGURATION ---
 const MODELS_TO_LOAD = {
     box: 'box.glb',
-    db650g: 'boeller_gross.glb', 
-    sc628g: 'cobra.glb'
+    db2g: 'DB2g.glb', 
+    sc628g: 'Untitled.glb'
 };
 
 const OBJECT_TYPES = {
@@ -11,12 +11,12 @@ const OBJECT_TYPES = {
         isExplosive: false, scale: 0.7 
     },
     db2g: { 
-        size: [0.1, 0.4, 0.1], color: 0x222222, mass: 0.5, type: "cylinder", 
-        isExplosive: true, timer: 2000, power: 10, radius: 5, shockwaveScale: 2 
+        size: [0.1, 0.6, 0.1], color: 0x222222, mass: 0.5, type: "cylinder", 
+        isExplosive: true, timer: 2000, power: 10, radius: 5, shockwaveScale: 2, scale: 5
     },
     db5g: { 
         size: [0.11, 0.5, 0.11], color: 0x222222, mass: 1.0, type: "cylinder", 
-        isExplosive: true, timer: 2000, power: 25, radius: 10, shockwaveScale: 4 
+        isExplosive: true, timer: 2000, power: 25, radius: 10, shockwaveScale: 4,
     },
     bb8g: { 
         size: [0.12, 0.6, 0.12], color: 0x222222, mass: 1.0, type: "cylinder", 
