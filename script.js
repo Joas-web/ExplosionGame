@@ -1,31 +1,38 @@
 // --- 1. KONFIGURATION ---
 const MODELS_TO_LOAD = {
     box: 'box.glb',
+    box2: 'box2.glb',
     db2g: 'DB2g.glb', 
-    sc628g: 'Untitled.glb'
+    db5g: 'DB2g.glb',
+    bb8g: 'BB8g.glb',
+    sc628g: 'SC628g.glb',
 };
 
 const OBJECT_TYPES = {
     box: { 
-        size: [1, 1, 1], color: 0xd2b48c, mass: 2, type: "box", 
-        isExplosive: false, scale: 0.7 
+        size: [1.5, 1.5, 1.5], color: 0xd2b48c, mass: 2, type: "box", 
+        isExplosive: false, scale: 1 
+    },
+    box2: { 
+        size: [1.8, 1.8, 1.8], color: 0xd2b48c, mass: 8, type: "box", 
+        isExplosive: false, scale: 6 
     },
     db2g: { 
-        size: [0.1, 0.6, 0.1], color: 0x222222, mass: 0.5, type: "cylinder", 
+        size: [0.2, 0.6, 0.2], color: 0x222222, mass: 0.5, type: "cylinder", 
         isExplosive: true, timer: 2000, power: 10, radius: 5, shockwaveScale: 2, scale: 5
     },
     db5g: { 
-        size: [0.11, 0.5, 0.11], color: 0x222222, mass: 1.0, type: "cylinder", 
-        isExplosive: true, timer: 2000, power: 25, radius: 10, shockwaveScale: 4,
+        size: [0.4, 0.8, 0.4], color: 0x222222, mass: 1.0, type: "cylinder", 
+        isExplosive: true, timer: 2000, power: 25, radius: 10, shockwaveScale: 4, scale: 6
     },
     bb8g: { 
-        size: [0.12, 0.6, 0.12], color: 0x222222, mass: 1.0, type: "cylinder", 
-        isExplosive: true, timer: 2000, power: 40, radius: 18, shockwaveScale: 5 
+        size: [0.15, 1, 0.15], color: 0x222222, mass: 1.0, type: "cylinder", 
+        isExplosive: true, timer: 2000, power: 40, radius: 18, shockwaveScale: 5, scale: 35 
     },
     sc628g: { 
-        size: [0.13, 0.7, 0.13], color: 0x222222, mass: 1.0, type: "cylinder", 
+        size: [0.15, 1, 0.15], color: 0x222222, mass: 1.0, type: "cylinder", 
         isExplosive: true, timer: 2000, power: 120, radius: 25, hasFuse: true, 
-        scale: 0.2, shockwaveScale: 8 
+        scale: 35, shockwaveScale: 8 
     },
     db650g: { 
         size: [0.2, 1.0, 0.2], color: 0x222222, mass: 1.2, type: "cylinder", 
@@ -35,9 +42,11 @@ const OBJECT_TYPES = {
 };
 
 let mode = "box";
+let ignitionMode = "auto";
 const meshes = [];
 const bodies = [];
-const loadedModels = {}; 
+const loadedModels = {};
+const waitingForLight = new Map();
 
 // --- 2. THREE.JS SETUP ---
 const scene = new THREE.Scene();
@@ -88,7 +97,9 @@ function spawnObject(type, x, y, z) {
         mesh = loadedModels[type].clone();
         if (config.scale) mesh.scale.set(config.scale, config.scale, config.scale);
     } else {
-        const geo = config.type === "box" ? new THREE.BoxGeometry(...config.size) : new THREE.CylinderGeometry(config.size[0], config.size[0], config.size[1], 16);
+        const geo = config.type === "box"
+            ? new THREE.BoxGeometry(...config.size)
+            : new THREE.CylinderGeometry(config.size[0], config.size[0], config.size[1], 16);
         mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: config.color }));
     }
 
@@ -103,9 +114,7 @@ function spawnObject(type, x, y, z) {
         body.addShape(shape, new CANNON.Vec3(), q);
     }
 
-    // FALL-EFFEKT: Wir spawnen den Böller 2 Einheiten über dem Klick-Punkt
     body.position.set(x, y + 2.0, z);
-    // Leichte zufällige Drehung beim Fallen
     body.quaternion.setFromEuler(Math.random()*0.2, Math.random()*Math.PI, Math.random()*0.2);
 
     scene.add(mesh);
@@ -113,7 +122,18 @@ function spawnObject(type, x, y, z) {
     meshes.push(mesh);
     bodies.push(body);
 
-    if (config.isExplosive && config.hasFuse) {
+    if (!config.isExplosive) return;
+
+    if (ignitionMode === "auto") {
+        scheduleExplosion(body, mesh, config);
+    } else {
+        mesh.userData.waitingForLight = true;
+        waitingForLight.set(body, config);
+    }
+}
+
+function scheduleExplosion(body, mesh, config) {
+    if (config.hasFuse) {
         const flame = new THREE.Mesh(new THREE.SphereGeometry(0.06), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
         const fLight = new THREE.PointLight(0xffaa00, 2, 3);
         scene.add(flame, fLight);
@@ -122,21 +142,33 @@ function spawnObject(type, x, y, z) {
         mesh.userData.flameOffset = config.size[1] / 2;
     }
 
-    if (config.isExplosive) {
-        setTimeout(() => {
-            if (bodies.includes(body)) {
-                if (mesh.userData.flame) {
-                    scene.remove(mesh.userData.flame);
-                    scene.remove(mesh.userData.light);
-                }
-                explode(body.position.clone(), config.power, config.radius, config.shockwaveScale || 1);
-                removeObject(body);
+    setTimeout(() => {
+        if (bodies.includes(body)) {
+            if (mesh.userData.flame) {
+                scene.remove(mesh.userData.flame);
+                scene.remove(mesh.userData.light);
             }
-        }, config.timer);
-    }
+            explode(body.position.clone(), config.power, config.radius, config.shockwaveScale || 1);
+            removeObject(body);
+        }
+    }, config.timer);
+}
+
+function lightFuse(body) {
+    if (!waitingForLight.has(body)) return;
+    const config = waitingForLight.get(body);
+    waitingForLight.delete(body);
+
+    const index = bodies.indexOf(body);
+    if (index === -1) return;
+    const mesh = meshes[index];
+    mesh.userData.waitingForLight = false;
+
+    scheduleExplosion(body, mesh, config);
 }
 
 function removeObject(body) {
+    waitingForLight.delete(body);
     const index = bodies.indexOf(body);
     if (index > -1) {
         scene.remove(meshes[index]);
@@ -147,30 +179,30 @@ function removeObject(body) {
 }
 
 function explode(pos, power, radius, shockwaveScale) {
-    // 1. Physik Impuls
     bodies.forEach(b => {
         const dist = b.position.distanceTo(pos);
         if (dist < radius) {
             const dir = b.position.vsub(pos);
             dir.normalize();
             b.applyImpulse(dir.scale(power / (dist + 0.5)), b.position);
+
+            if (waitingForLight.has(b)) {
+                lightFuse(b);
+            }
         }
     });
 
-    // 2. WEISSER EXPLOSIONSPUNKT (Blitz)
     const flashGeo = new THREE.SphereGeometry(radius / 5, 16, 16);
     const flashMat = new THREE.MeshBasicMaterial({ color: 0xfffff0, transparent: true, opacity: 0.9 });
     const flash = new THREE.Mesh(flashGeo, flashMat);
     flash.position.copy(pos);
     scene.add(flash);
-    // Verschwindet nach 50ms
     setTimeout(() => scene.remove(flash), 50);
 
-    // 3. Gelbe Druckwelle
     const shockGeo = new THREE.TorusGeometry(1, 0.15, 8, 32);
     const shockMat = new THREE.MeshBasicMaterial({ color: 0xfffff1, transparent: true, opacity: 0.5 });
     const shockWave = new THREE.Mesh(shockGeo, shockMat);
-    shockWave.position.set(pos.x, 0.2, pos.z);
+    shockWave.position.set(pos.x, pos.y, pos.z);
     shockWave.rotation.x = Math.PI / 2;
     scene.add(shockWave);
 
@@ -184,7 +216,6 @@ function explode(pos, power, radius, shockwaveScale) {
     }
     ani();
 
-    // 4. Wackeln
     let frames = 20;
     const intensity = Math.min(1.8, (power / 350));
     function shake() {
@@ -202,29 +233,116 @@ function explode(pos, power, radius, shockwaveScale) {
     shake();
 }
 
-// --- 6. LOOP & EVENTS ---
-window.onclick = (e) => {
-    if (e.target.tagName === 'BUTTON') return;
-    const mouse = new THREE.Vector2((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+// --- 6. INPUT ---
+function handleTap(clientX, clientY) {
+    const mouse = new THREE.Vector2(
+        (clientX / window.innerWidth) * 2 - 1,
+        -(clientY / window.innerHeight) * 2 + 1
+    );
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
+
+    if (ignitionMode === "manual") {
+        const waitingMeshes = bodies
+            .filter(b => waitingForLight.has(b))
+            .map(b => meshes[bodies.indexOf(b)]);
+
+        if (waitingMeshes.length > 0) {
+            const hits = raycaster.intersectObjects(waitingMeshes, true);
+            if (hits.length > 0) {
+                let hitMesh = hits[0].object;
+                while (hitMesh && !meshes.includes(hitMesh)) {
+                    hitMesh = hitMesh.parent;
+                }
+                if (hitMesh) {
+                    const idx = meshes.indexOf(hitMesh);
+                    if (idx !== -1) lightFuse(bodies[idx]);
+                }
+                return;
+            }
+        }
+    }
+
     const intersects = raycaster.intersectObject(groundMesh);
     if (intersects.length > 0) spawnObject(mode, intersects[0].point.x, 0, intersects[0].point.z);
-};
+}
 
-document.querySelectorAll("button").forEach(btn => {
-    btn.onclick = (e) => {
-        e.stopPropagation();
-        const id = btn.id;
-        if(id === "btn-box") mode = "box";
-        else if(id === "dumbum2g") mode = "db2g";
-        else if(id === "dumbum5g") mode = "db5g";
-        else if(id === "bigbang8g") mode = "bb8g";
-        else if(id === "supercobra6") mode = "sc628g";
-        else if(id === "dumbum650g") mode = "db650g";
-    };
+window.addEventListener('click', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    handleTap(e.clientX, e.clientY);
 });
 
+window.addEventListener('touchend', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    handleTap(touch.clientX, touch.clientY);
+}, { passive: false });
+
+// --- 7. BUTTONS ---
+document.getElementById('btn-hide-menu').addEventListener('click', () => {
+    document.getElementById('panel').classList.add('hidden');
+    document.getElementById('btn-show-menu').classList.add('visible');
+});
+document.getElementById('btn-show-menu').addEventListener('click', () => {
+    document.getElementById('panel').classList.remove('hidden');
+    document.getElementById('btn-show-menu').classList.remove('visible');
+});
+
+document.querySelectorAll("button").forEach(btn => {
+    function onSelect(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const id = btn.id;
+
+        if (id === 'btn-hide-menu' || id === 'btn-show-menu') return;
+
+        if (id === 'btn-ignition') {
+            ignitionMode = ignitionMode === 'auto' ? 'manual' : 'auto';
+            btn.querySelector('.btn-text').textContent = ignitionMode === 'auto' ? 'Auto-Zündung' : 'Feuerzeug 🔥';
+            btn.querySelector('.btn-icon').textContent = ignitionMode === 'auto' ? '🔁' : '🔥';
+            btn.classList.toggle('active', ignitionMode === 'auto');
+            return;
+        }
+
+        const map = {
+            'btn-box': 'box',
+            'btn-box2': 'box2',
+            'dumbum2g': 'db2g',
+            'dumbum5g': 'db5g',
+            'bigbang8g': 'bb8g',
+            'supercobra6': 'sc628g',
+            'dumbum650g': 'db650g'
+        };
+        if (map[id]) {
+            mode = map[id];
+            document.querySelectorAll('.btn-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+    }
+
+    // Fix: touchend UND click feuern auf Mobile beide -> nur einen davon ausführen
+    let touchFired = false;
+    btn.addEventListener('touchend', (e) => {
+        touchFired = true;
+        onSelect(e);
+        setTimeout(() => { touchFired = false; }, 300);
+    }, { passive: false });
+    btn.addEventListener('click', (e) => {
+        if (touchFired) return;
+        onSelect(e);
+    });
+});
+
+// --- 8. RESIZE ---
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+});
+
+// --- 9. LOOP ---
 function animate() {
     requestAnimationFrame(animate);
     world.step(1/60);

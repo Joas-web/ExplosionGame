@@ -2,39 +2,56 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Explosion Game</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="icon" href="img/Icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
     <script src="https://unpkg.com/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
   </head>
   <body>
-    <div class="menu">
-      <div id="menu">
-        <strong>Werkzeuge</strong>
-        <button id="btn-box">📦 Kiste platzieren</button>
-        <br>
-        <br>
-        <strong>🧨 Böller platzieren</strong>
-        <button id="dumbum2g">Dumbum 2g</button>
-        <button id="dumbum5g">Dumbum 5g</button>
-        <button id="bigbang8g">BigBang 8g</button>
-        <button id="supercobra6">Super Cobra 6</button>
-        <button id="dumbum650g">Dumbum 650g</button>
-        <br>
-        <div class="hint">
-          Klicke auf den Boden.<br />
-          Böller zünden nach 2 Sek.
-        </div>
+
+    <div id="panel">
+      <div id="panel-header">
+        <span id="panel-title"> Werkzeuge </span>
+        <button id="btn-hide-menu" title="Ausblenden">✕</button>
       </div>
 
-      <button id="btn-hide-menu">Ausblenden</button>
+      <div class="section-label">Zündmodus</div>
+      <button id="btn-ignition" class="btn-mode active">
+        <span class="btn-icon">🔁</span>
+        <span class="btn-text">Auto-Zündung</span>
+      </button>
+
+      <div class="section-label">Objekte</div>
+      <div class="btn-grid">
+        <button id="btn-box" class="btn-item active">
+          <span class="btn-icon">📦</span>
+          <span class="btn-text">Karton</span>
+        </button>
+        <button id="btn-box2" class="btn-item">
+          <span class="btn-icon">🗃️</span>
+          <span class="btn-text">Kiste</span>
+        </button>
+      </div>
+
+  <div class="section-label">🧨 Böller</div>
+  <div class="btn-grid">
+    <button id="dumbum2g" class="btn-item">DumBum 2g</button>
+    <button id="dumbum5g" class="btn-item">DumBum 5g</button>
+    <button id="bigbang8g" class="btn-item">BigBang 8g</button>
+    <button id="supercobra6" class="btn-item">SuperCobra</button>
+    <button id="dumbum650g" class="btn-item danger">DumBum 650g</button>
+  </div>
+
+      <div class="hint">Tippe auf den Boden zum Platzieren</div>
     </div>
 
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <button id="btn-show-menu">☰</button>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>
