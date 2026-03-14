@@ -5,7 +5,8 @@ const MODELS_TO_LOAD = {
     db2g: 'DB2g.glb', 
     db5g: 'DB2g.glb',
     bb8g: 'BB8g.glb',
-    sc628g: 'SC628g.glb',
+    sc628g: 'sc628g.glb',
+    db650g: 'DB2g.glb'
 };
 
 const OBJECT_TYPES = {
@@ -35,9 +36,9 @@ const OBJECT_TYPES = {
         scale: 35, shockwaveScale: 8 
     },
     db650g: { 
-        size: [0.2, 1.0, 0.2], color: 0x222222, mass: 1.2, type: "cylinder", 
+        size: [1, 1.8, 1], color: 0x222222, mass: 1.2, type: "cylinder", 
         isExplosive: true, timer: 2000, power: 2500, radius: 40, 
-        scale: 0.3, shockwaveScale: 18 
+        scale: 12, shockwaveScale: 18 
     }
 };
 
@@ -171,15 +172,22 @@ function removeObject(body) {
     waitingForLight.delete(body);
     const index = bodies.indexOf(body);
     if (index > -1) {
-        scene.remove(meshes[index]);
-        world.removeBody(bodies[index]);
+        const mesh = meshes[index];
+        if (mesh.userData.flame) {
+            scene.remove(mesh.userData.flame);
+            scene.remove(mesh.userData.light);
+        }
+        scene.remove(mesh);
+        world.removeBody(body);
         bodies.splice(index, 1);
         meshes.splice(index, 1);
     }
 }
 
 function explode(pos, power, radius, shockwaveScale) {
-    bodies.forEach(b => {
+    // Snapshot der bodies machen da lightFuse das Array verändern kann
+    const bodiesSnapshot = [...bodies];
+    bodiesSnapshot.forEach(b => {
         const dist = b.position.distanceTo(pos);
         if (dist < radius) {
             const dir = b.position.vsub(pos);
@@ -242,6 +250,23 @@ function handleTap(clientX, clientY) {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
+    // Löschen-Modus
+    if (mode === 'delete') {
+        const hits = raycaster.intersectObjects(meshes, true);
+        if (hits.length > 0) {
+            let hitMesh = hits[0].object;
+            while (hitMesh && !meshes.includes(hitMesh)) {
+                hitMesh = hitMesh.parent;
+            }
+            if (hitMesh) {
+                const idx = meshes.indexOf(hitMesh);
+                if (idx !== -1) removeObject(bodies[idx]);
+            }
+        }
+        return;
+    }
+
+    // Feuerzeug-Modus
     if (ignitionMode === "manual") {
         const waitingMeshes = bodies
             .filter(b => waitingForLight.has(b))
@@ -280,11 +305,28 @@ window.addEventListener('touchend', (e) => {
 }, { passive: false });
 
 // --- 7. BUTTONS ---
-document.getElementById('btn-hide-menu').addEventListener('click', () => {
+function addTapListener(id, fn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let tapped = false;
+    el.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        tapped = true;
+        fn();
+        setTimeout(() => { tapped = false; }, 300);
+    }, { passive: false });
+    el.addEventListener('click', (e) => {
+        if (tapped) return;
+        fn();
+    });
+}
+
+addTapListener('btn-hide-menu', () => {
     document.getElementById('panel').classList.add('hidden');
     document.getElementById('btn-show-menu').classList.add('visible');
 });
-document.getElementById('btn-show-menu').addEventListener('click', () => {
+addTapListener('btn-show-menu', () => {
     document.getElementById('panel').classList.remove('hidden');
     document.getElementById('btn-show-menu').classList.remove('visible');
 });
@@ -306,13 +348,14 @@ document.querySelectorAll("button").forEach(btn => {
         }
 
         const map = {
-            'btn-box': 'box',
-            'btn-box2': 'box2',
-            'dumbum2g': 'db2g',
-            'dumbum5g': 'db5g',
-            'bigbang8g': 'bb8g',
-            'supercobra6': 'sc628g',
-            'dumbum650g': 'db650g'
+            'btn-box':    'box',
+            'btn-box2':   'box2',
+            'dumbum2g':   'db2g',
+            'dumbum5g':   'db5g',
+            'bigbang8g':  'bb8g',
+            'supercobra6':'sc628g',
+            'dumbum650g': 'db650g',
+            'btn-delete': 'delete'
         };
         if (map[id]) {
             mode = map[id];
@@ -321,7 +364,6 @@ document.querySelectorAll("button").forEach(btn => {
         }
     }
 
-    // Fix: touchend UND click feuern auf Mobile beide -> nur einen davon ausführen
     let touchFired = false;
     btn.addEventListener('touchend', (e) => {
         touchFired = true;
