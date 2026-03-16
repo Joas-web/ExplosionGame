@@ -38,6 +38,8 @@ const OBJECT_TYPES = {
     radius: 5,
     shockwaveScale: 2,
     scale: 5,
+    explosionSound: "explosion_small.mp3",
+    explosionVolume: 0.7,
   },
   db5g: {
     size: [0.4, 0.8, 0.4],
@@ -50,6 +52,8 @@ const OBJECT_TYPES = {
     radius: 10,
     shockwaveScale: 4,
     scale: 6,
+    explosionSound: "explosion_small.mp3",
+    explosionVolume: 1,
   },
   bb8g: {
     size: [0.15, 1, 0.15],
@@ -62,6 +66,7 @@ const OBJECT_TYPES = {
     radius: 18,
     shockwaveScale: 5,
     scale: 35,
+    explosionSound: "explosion_medium.mp3",
   },
   sc628g: {
     size: [0.15, 1, 0.15],
@@ -76,6 +81,9 @@ const OBJECT_TYPES = {
     scale: 35,
     hasFuse: true,
     hasFountain: true,
+    fuseSound: "fuse.wav",
+    explosionSound: "explosion_small.mp3",
+    explosionVolume: 1,
     fountainColor: ["#ffda33", "#ffa600", "#fff98b", "#ff8800", "#ff8d71"],
     fountainHeight: 5,
     fountainSpread: 3,
@@ -97,6 +105,9 @@ const OBJECT_TYPES = {
     scale: 50,
     hasFuse: true,
     hasFountain: true,
+    fuseSound: "fuse.mp3",
+    explosionSound: "explosion_small.mp3",
+    explosionVolume: 1.0,
     fountainColor: [
       "#f2ff00",
       "#ffae00",
@@ -123,6 +134,7 @@ const OBJECT_TYPES = {
     radius: 40,
     shockwaveScale: 32,
     scale: 12,
+    explosionSound: "explosion_large.mp3",
   },
 };
 
@@ -184,6 +196,22 @@ groundBody.position.set(0, -0.5, 0);
 world.addBody(groundBody);
 
 // --- 5. FUNKTIONEN ---
+
+function playSound(file, volume = 1.0) {
+  if (!file) return;
+  const audio = new Audio(file);
+  audio.volume = volume;
+  audio.play().catch(() => {});
+}
+
+function parseColor(c) {
+  if (typeof c === "string") {
+    const col = new THREE.Color(c);
+    return [col.r, col.g, col.b];
+  }
+  return c;
+}
+
 function spawnObject(type, x, y, z) {
   const config = OBJECT_TYPES[type];
   if (!config) return;
@@ -264,6 +292,7 @@ function scheduleExplosion(body, mesh, config) {
     mesh.userData.flame = flame;
     mesh.userData.light = fLight;
     mesh.userData.flameOffset = config.size[1] / 2;
+    playSound(config.fuseSound, 0.8);
   }
 
   if (config.hasFountain) {
@@ -277,6 +306,7 @@ function scheduleExplosion(body, mesh, config) {
         scene.remove(mesh.userData.flame);
         scene.remove(mesh.userData.light);
       }
+      playSound(config.explosionSound, config.explosionVolume ?? 1.0);
       explode(
         body.position.clone(),
         config.power,
@@ -288,18 +318,7 @@ function scheduleExplosion(body, mesh, config) {
   }, config.timer);
 }
 
-// Hilfsfunktion: Farbe in [r, g, b] Array (0-1) umwandeln
-function parseColor(c) {
-  if (typeof c === "string") {
-    const col = new THREE.Color(c);
-    return [col.r, col.g, col.b];
-  }
-  // bereits RGB Array
-  return c;
-}
-
 function startFountain(mesh, config) {
-  // Farben normalisieren: immer Array von RGB-Arrays
   let fc = config.fountainColor || ["#ffcc00"];
   if (!Array.isArray(fc)) fc = [fc];
   fc = fc.map(parseColor);
