@@ -251,3 +251,52 @@ canvas { display: block; }
     transform: translateX(-50%);
   }
 }
+#btn-lighter {
+  border-color: #ff6a00;
+  color: #ff6a00;
+}
+
+#btn-lighter:hover {
+  background: rgba(255, 106, 0, 0.15);
+  border-color: #ff8c00;
+}
+
+#btn-lighter.active {
+  background: linear-gradient(135deg, #ff6a00, #ff4500);
+  border-color: #ff4500;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(255, 106, 0, 0.6);
+}
+
+@keyframes lighter-pulse {
+  0%   { box-shadow: 0 0 6px rgba(255, 106, 0, 0.5); }
+  50%  { box-shadow: 0 0 18px rgba(255, 106, 0, 0.95); }
+  100% { box-shadow: 0 0 6px rgba(255, 106, 0, 0.5); }
+}
+* {
+  cursor: none;
+}
+
+#cursor-dot {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+
+#cursor-dot.lighter {
+  background: #ff6a00;
+  transform: translate(-50%, -50%) scale(1.6);
+  box-shadow: 0 0 8px rgba(255, 106, 0, 0.8);
+}
+
+#cursor-dot.delete {
+  background: #ff2020;
+  transform: translate(-50%, -50%) scale(1.6);
+}

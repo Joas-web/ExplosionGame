@@ -2,17 +2,23 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Explosion Game</title>
     <link rel="stylesheet" href="style.css" />
-    <link rel="icon" href="img/Icon.png" type="image/png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="icon" href="img/Icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
     <script src="https://unpkg.com/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
   </head>
   <body>
-
+    <div id="cursor-dot"></div>
     <div id="panel">
       <div id="panel-header">
         <span id="panel-title"> Werkzeuge </span>
@@ -35,19 +41,36 @@
           <span class="btn-icon">🗃️</span>
           <span class="btn-text">Kiste</span>
         </button>
+        <button id="btn-mahan" class="btn-item">
+            <span class="btn-icon">🚁</span>
+            <span class="btn-text">Mahan</span>
+        </button>
+        <button id="btn-toilet" class="btn-item">
+            <span class="btn-icon">🚽</span>
+            <span class="btn-text">Toilette</span>
+        </button>
       </div>
       <div class="section-label">Aktionen</div>
-        <button id="btn-delete" class="btn-item">🗑️ Löschen</button>
+      <button id="btn-delete" class="btn-item">🗑️ Löschen</button>
+      <button
+        id="btn-lighter"
+        class="btn-item btn-lighter-tool"
+        style="display: none"
+      >
+        <span class="btn-icon">🔥</span>
+        <span class="btn-text">Feuerzeug</span>
+      </button>
 
-  <div class="section-label">🧨 Böller</div>
-  <div class="btn-grid">
-    <button id="dumbum2g" class="btn-item">DumBum 2g</button>
-    <button id="dumbum5g" class="btn-item">DumBum 5g</button>
-    <button id="bigbang8g" class="btn-item">BigBang 8g</button>
-    <button id="supercobra6" class="btn-item">SuperCobra 6</button>
-    <button id="theking100g" class="btn-item">The King</button>
-    <button id="dumbum650g" class="btn-item danger">DumBum 650g</button>
-  </div>
+      <div class="section-label">🧨 Böller</div>
+      <div class="btn-grid">
+        <button id="dumbum2g" class="btn-item">DB 2g</button>
+        <button id="dumbum5g" class="btn-item">DB 5g</button>
+        <button id="bigbang8g" class="btn-item">BB 8g</button>
+        <button id="supercobra6" class="btn-item">SC 6</button>
+        <button id="theking100g" class="btn-item">The King</button>
+        <button id="fart" class="btn-item">Fart King</button>
+        <button id="dumbum650g" class="btn-item danger">DB 650g</button>
+      </div>
 
       <div class="hint">Tippe auf den Boden zum Platzieren</div>
     </div>
@@ -57,4 +80,5 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
     <script src="script.js"></script>
   </body>
+
 </html>

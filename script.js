@@ -2,12 +2,16 @@
 const MODELS_TO_LOAD = {
   box: "box.glb",
   box2: "box2.glb",
+  mahan: "mahan.glb",
+  toilet: "toilet.glb",
   db2g: "DB2g.glb",
   db5g: "DB2g.glb",
   bb8g: "BB8g.glb",
   sc628g: "sc628g.glb",
   tk100g: "TK100g.glb",
+  fart: "DB2g.glb",
   db650g: "DB2g.glb",
+  
 };
 
 const OBJECT_TYPES = {
@@ -26,6 +30,22 @@ const OBJECT_TYPES = {
     type: "box",
     isExplosive: false,
     scale: 6,
+  },
+  mahan: {
+    size: [2, 5, 2],
+    color: 0x222222,
+    mass: 10,
+    type: "box",
+    isExplosive: false,
+    scale: 2.5,
+  },
+    toilet: {
+    size: [2.6, 2.7, 2.6],
+    color: 0x222222,
+    mass: 10,
+    type: "box",
+    isExplosive: false,
+    scale: 0.3,
   },
   db2g: {
     size: [0.2, 0.7, 0.2],
@@ -66,7 +86,7 @@ const OBJECT_TYPES = {
     radius: 18,
     shockwaveScale: 5,
     scale: 35,
-    explosionSound: "explosion_medium.mp3",
+    explosionSound: "explosion_small.mp3",
   },
   sc628g: {
     size: [0.15, 1, 0.15],
@@ -84,7 +104,13 @@ const OBJECT_TYPES = {
     fuseSound: "fuse.wav",
     explosionSound: "explosion_small.mp3",
     explosionVolume: 1,
-    fountainColor: ["#ffda33", "#ffa600", "#fff98b", "#ff8800", "#ff8d71"],
+    fountainColor: [
+      "#ffda33",
+      "#ffa600",
+      "#fff98b",
+      "#ff8800",
+      "#ff8d71"
+    ],
     fountainHeight: 5,
     fountainSpread: 3,
     fountainParticleSize: 0.05,
@@ -98,14 +124,14 @@ const OBJECT_TYPES = {
     mass: 2.5,
     type: "cylinder",
     isExplosive: true,
-    timer: 4000,
+    timer: 2000,
     power: 400,
     radius: 30,
     shockwaveScale: 16,
     scale: 50,
     hasFuse: true,
     hasFountain: true,
-    fuseSound: "fuse.mp3",
+    fuseSound: "fuse.wav",
     explosionSound: "explosion_small.mp3",
     explosionVolume: 1.0,
     fountainColor: [
@@ -115,6 +141,37 @@ const OBJECT_TYPES = {
       "#adadad",
       "#00fff7",
       "#8c00ff",
+    ],
+    fountainHeight: 10.0,
+    fountainSpread: 10,
+    fountainParticleSize: 0.05,
+    fountainDropRate: 0.25,
+    fountainFadeSpeed: 0.0212,
+    fountainRate: 1,
+  },
+  fart: {
+    size: [0.4, 0.8, 0.4],
+    color: 0x222222,
+    mass: 2.5,
+    type: "cylinder",
+    isExplosive: true,
+    timer: 2000,
+    power: 400,
+    radius: 30,
+    shockwaveScale: 16,
+    scale: 6,
+    hasFuse: true,
+    hasFountain: true,
+    fuseSound: "fuse.wav",
+    explosionSound: "fart.mp3",
+    explosionVolume: 1.0,
+    fountainColor: [
+      "#218b00",
+      "#412d00",
+      "#452d00",
+      "#6b4400",
+      "#794b00",
+      "#5c3300",
     ],
     fountainHeight: 10.0,
     fountainSpread: 10,
@@ -134,7 +191,7 @@ const OBJECT_TYPES = {
     radius: 40,
     shockwaveScale: 32,
     scale: 12,
-    explosionSound: "explosion_large.mp3",
+    explosionSound: "explosion_small.mp3",
   },
 };
 
@@ -145,6 +202,17 @@ const bodies = [];
 const loadedModels = {};
 const waitingForLight = new Map();
 const fountainParticles = [];
+
+// --- CURSOR DOT ---
+const cursorDot = document.getElementById("cursor-dot");
+
+window.addEventListener("mousemove", (e) => {
+  cursorDot.style.left = e.clientX + "px";
+  cursorDot.style.top  = e.clientY + "px";
+  cursorDot.className = "";
+  if (mode === "lighter") cursorDot.classList.add("lighter");
+  if (mode === "delete")  cursorDot.classList.add("delete");
+});
 
 // --- 2. THREE.JS SETUP ---
 const scene = new THREE.Scene();
@@ -259,7 +327,7 @@ function spawnObject(type, x, y, z) {
     body.addShape(shape, new CANNON.Vec3(), q);
   }
 
-  body.position.set(x, y + 2.0, z);
+  body.position.set(x, y + 3.0, z);
   body.quaternion.setFromEuler(
     Math.random() * 0.2,
     Math.random() * Math.PI,
@@ -439,6 +507,7 @@ function handleTap(clientX, clientY) {
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera);
 
+  // Löschen-Modus
   if (mode === "delete") {
     const hits = raycaster.intersectObjects(meshes, true);
     if (hits.length > 0) {
@@ -454,7 +523,8 @@ function handleTap(clientX, clientY) {
     return;
   }
 
-  if (ignitionMode === "manual") {
+  // Feuerzeug-Tool: nur zünden, nie spawnen
+  if (ignitionMode === "manual" && mode === "lighter") {
     const waitingMeshes = bodies
       .filter((b) => waitingForLight.has(b))
       .map((b) => meshes[bodies.indexOf(b)]);
@@ -470,14 +540,26 @@ function handleTap(clientX, clientY) {
           const idx = meshes.indexOf(hitMesh);
           if (idx !== -1) lightFuse(bodies[idx]);
         }
-        return;
       }
     }
+    return; // Nie auf den Boden spawnen im Feuerzeug-Tool-Modus
   }
 
-  const intersects = raycaster.intersectObject(groundMesh);
-  if (intersects.length > 0)
-    spawnObject(mode, intersects[0].point.x, 0, intersects[0].point.z);
+  // Normaler Platzier-Modus
+  if (mode !== "lighter") {
+    // Zuerst auf Objekte prüfen, dann auf den Boden
+    const objectHits = raycaster.intersectObjects(meshes, true);
+    if (objectHits.length > 0) {
+      const pt = objectHits[0].point;
+      spawnObject(mode, pt.x, pt.y, pt.z);
+      return;
+    }
+    const groundHits = raycaster.intersectObject(groundMesh);
+    if (groundHits.length > 0) {
+      const pt = groundHits[0].point;
+      spawnObject(mode, pt.x, 0, pt.z);
+    }
+  }
 }
 
 window.addEventListener("click", (e) => {
@@ -524,6 +606,7 @@ addTapListener("btn-hide-menu", () => {
   document.getElementById("panel").classList.add("hidden");
   document.getElementById("btn-show-menu").classList.add("visible");
 });
+
 addTapListener("btn-show-menu", () => {
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("btn-show-menu").classList.remove("visible");
@@ -537,26 +620,44 @@ document.querySelectorAll("button").forEach((btn) => {
 
     if (id === "btn-hide-menu" || id === "btn-show-menu") return;
 
+    // Zündungs-Toggle
     if (id === "btn-ignition") {
       ignitionMode = ignitionMode === "auto" ? "manual" : "auto";
       btn.querySelector(".btn-text").textContent =
-        ignitionMode === "auto" ? "Auto-Zündung" : "Feuerzeug 🔥";
+        ignitionMode === "auto" ? "Auto-Zündung" : "Manuelle-Zündung 🔥";
       btn.querySelector(".btn-icon").textContent =
         ignitionMode === "auto" ? "🔁" : "🔥";
       btn.classList.toggle("active", ignitionMode === "auto");
+
+      // Feuerzeug-Button ein-/ausblenden
+      const lighterBtn = document.getElementById("btn-lighter");
+      if (lighterBtn) {
+        lighterBtn.style.display = ignitionMode === "manual" ? "" : "none";
+      }
+
+      // Zurück zu Auto: Feuerzeug-Tool deaktivieren, Box auswählen
+      if (ignitionMode === "auto" && mode === "lighter") {
+        mode = "box";
+        document.querySelectorAll(".btn-item").forEach((b) => b.classList.remove("active"));
+        document.getElementById("btn-box")?.classList.add("active");
+      }
       return;
     }
 
     const map = {
       "btn-box": "box",
       "btn-box2": "box2",
+      "btn-mahan": "mahan",
+      "btn-toilet": "toilet",
       dumbum2g: "db2g",
       dumbum5g: "db5g",
       bigbang8g: "bb8g",
       supercobra6: "sc628g",
       theking100g: "tk100g",
+      fart: "fart",
       dumbum650g: "db650g",
       "btn-delete": "delete",
+      "btn-lighter": "lighter",
     };
     if (map[id]) {
       mode = map[id];
