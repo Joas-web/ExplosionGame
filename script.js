@@ -6,7 +6,7 @@ const MODELS_TO_LOAD = {
   db5g: "DB2g.glb",
   bb8g: "BB8g.glb",
   sc628g: "sc628g.glb",
-  tk200g: "TK100g.glb",
+  tk100g: "TK100g.glb",
   db650g: "DB2g.glb",
 };
 
@@ -72,11 +72,11 @@ const OBJECT_TYPES = {
     timer: 2000,
     power: 120,
     radius: 25,
-    hasFuse: true,
-    scale: 35,
     shockwaveScale: 8,
+    scale: 35,
+    hasFuse: true,
     hasFountain: true,
-    fountainColor: [1.0, 0.85, 0.2],
+    fountainColor: ["#ffda33", "#ffa600", "#fff98b", "#ff8800", "#ff8d71"],
     fountainHeight: 5,
     fountainSpread: 3,
     fountainParticleSize: 0.05,
@@ -84,23 +84,26 @@ const OBJECT_TYPES = {
     fountainFadeSpeed: 0.015,
     fountainRate: 1,
   },
-  tk200g: {
+  tk100g: {
     size: [0.5, 1.5, 0.5],
     color: 0x222222,
     mass: 2.5,
     type: "cylinder",
     isExplosive: true,
-    timer: 2000,
+    timer: 4000,
     power: 400,
     radius: 30,
-    hasFuse: true,
-    scale: 50,
     shockwaveScale: 16,
+    scale: 50,
+    hasFuse: true,
     hasFountain: true,
     fountainColor: [
-      [1.0, 0.9, 0.0],
-      [0.8, 0.8, 0.8],
-      [1.0, 0.4, 0.0],
+      "#f2ff00",
+      "#ffae00",
+      "#ff0000",
+      "#adadad",
+      "#00fff7",
+      "#8c00ff",
     ],
     fountainHeight: 10.0,
     fountainSpread: 10,
@@ -118,8 +121,8 @@ const OBJECT_TYPES = {
     timer: 2000,
     power: 2500,
     radius: 40,
-    scale: 12,
     shockwaveScale: 32,
+    scale: 12,
   },
 };
 
@@ -269,9 +272,7 @@ function scheduleExplosion(body, mesh, config) {
 
   setTimeout(() => {
     if (bodies.includes(body)) {
-      // Fontäne stoppen
       mesh.userData.fountainActive = false;
-
       if (mesh.userData.flame) {
         scene.remove(mesh.userData.flame);
         scene.remove(mesh.userData.light);
@@ -287,26 +288,33 @@ function scheduleExplosion(body, mesh, config) {
   }, config.timer);
 }
 
+// Hilfsfunktion: Farbe in [r, g, b] Array (0-1) umwandeln
+function parseColor(c) {
+  if (typeof c === "string") {
+    const col = new THREE.Color(c);
+    return [col.r, col.g, col.b];
+  }
+  // bereits RGB Array
+  return c;
+}
+
 function startFountain(mesh, config) {
-  const fc = config.fountainColor || [1.0, 0.8, 0.2];
-  const fw = config.fountainSpread || 0.08;
-  const fh = config.fountainHeight || 4.0;
-  const fps = config.fountainParticleSize || 0.035;
-  const fdr = config.fountainDropRate || 0.06;
-  const ffd = config.fountainFadeSpeed || 0.018;
-  const frr = config.fountainRate || 0.7;
+  // Farben normalisieren: immer Array von RGB-Arrays
+  let fc = config.fountainColor || ["#ffcc00"];
+  if (!Array.isArray(fc)) fc = [fc];
+  fc = fc.map(parseColor);
 
   mesh.userData.fountainActive = true;
-  mesh.userData.fountainStartTime = performance.now() + 100; // 100ms Delay
+  mesh.userData.fountainStartTime = performance.now() + 100;
   mesh.userData.fountainDuration = config.timer;
   mesh.userData.fountainConfig = {
     fc,
-    fw,
-    fh,
-    fps,
-    fdr,
-    ffd,
-    frr,
+    fw: config.fountainSpread || 0.08,
+    fh: config.fountainHeight || 4.0,
+    fps: config.fountainParticleSize || 0.035,
+    fdr: config.fountainDropRate || 0.06,
+    ffd: config.fountainFadeSpeed || 0.018,
+    frr: config.fountainRate || 0.7,
     size1half: config.size[1] / 2,
   };
 }
@@ -527,7 +535,7 @@ document.querySelectorAll("button").forEach((btn) => {
       dumbum5g: "db5g",
       bigbang8g: "bb8g",
       supercobra6: "sc628g",
-      theking100g: "tk200g",
+      theking100g: "tk100g",
       dumbum650g: "db650g",
       "btn-delete": "delete",
     };
@@ -581,11 +589,9 @@ function animate() {
 
     if (elapsed > 0 && elapsed < m.userData.fountainDuration) {
       if (Math.random() < cfg.frr) {
-        const geo = new THREE.SphereGeometry(cfg.fps, 4, 4);
-        const fc = Array.isArray(cfg.fc[0])
-          ? cfg.fc[Math.floor(Math.random() * cfg.fc.length)]
-          : cfg.fc;
+        const fc = cfg.fc[Math.floor(Math.random() * cfg.fc.length)];
 
+        const geo = new THREE.SphereGeometry(cfg.fps, 4, 4);
         const mat = new THREE.MeshBasicMaterial({
           color: new THREE.Color(
             Math.min(1, fc[0] + (Math.random() - 0.5) * 0.15),
@@ -629,7 +635,6 @@ function animate() {
     p.userData.vel.z += (Math.random() - 0.5) * p.userData.spread * 0.1;
     p.position.add(p.userData.vel.clone().multiplyScalar(0.016));
 
-    // Boden-Kollision
     if (p.position.y <= 0) {
       p.position.y = 0;
       p.userData.vel.set(0, 0, 0);
@@ -639,6 +644,7 @@ function animate() {
     if (!p.userData.peaked && p.userData.vel.y < 0) {
       p.userData.peaked = true;
     }
+
     if (p.userData.peaked) {
       p.userData.life -= p.userData.ffd;
       p.material.opacity = Math.max(0, p.userData.life);
