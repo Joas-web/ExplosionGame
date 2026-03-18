@@ -38,6 +38,8 @@ const OBJECT_TYPES = {
     type: "box",
     isExplosive: false,
     scale: 2.5,
+    placeSound: "mahan.mp3",
+    placeSoundVolume: 1,
   },
     toilet: {
     size: [2.6, 2.7, 2.6],
@@ -338,6 +340,9 @@ function spawnObject(type, x, y, z) {
   world.addBody(body);
   meshes.push(mesh);
   bodies.push(body);
+  if (config.placeSound) {
+  playSound(config.placeSound, config.placeSoundVolume ?? 1.0);
+}
 
   if (!config.isExplosive) return;
 
